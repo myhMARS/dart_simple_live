@@ -29,6 +29,7 @@ import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
+import 'package:simple_live_app/services/update_service.dart';
 import 'package:simple_live_app/widgets/status/app_loadding_widget.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:window_manager/window_manager.dart';
@@ -57,6 +58,9 @@ void main() async {
   );
   SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
   runApp(const MyApp());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(UpdateService.instance.checkForUpdates(silent: true));
+  });
 }
 
 /// 将Hive数据迁移到Application Support

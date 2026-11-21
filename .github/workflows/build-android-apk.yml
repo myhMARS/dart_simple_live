@@ -29,6 +29,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate version manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          import re
+          import sys
+
+          pubspec = open('simple_live_app/pubspec.yaml', encoding='utf-8').read()
+          match = re.search(r'^version:\s*([^\s]+)', pubspec, re.M)
+          if not match:
+              sys.exit('pubspec.yaml version not found')
+          version, build = match.group(1).split('+')
+          manifest = json.load(open('assets/app_version.json', encoding='utf-8'))
+          if manifest.get('version') != version or int(manifest.get('version_num', -1)) != int(build):
+              sys.exit(
+                  'version mismatch: pubspec=%s+%s manifest=%s+%s'
+                  % (version, build, manifest.get('version'), manifest.get('version_num'))
+              )
+          print('version ok: %s+%s' % (version, build))
+          PY
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
