@@ -1,0 +1,68 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - "simple_live_app/**"
+      - "simple_live_core/**"
+      - ".github/workflows/build-android-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.x"
+          channel: stable
+          cache: true
+
+      - name: Generate CI signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$RUNNER_TEMP/ci-keystore.jks" \
+            -storepass android -keypass android \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          cat > simple_live_app/android/key.properties <<EOF
+          storeFile=$RUNNER_TEMP/ci-keystore.jks
+          storePassword=android
+          keyPassword=android
+          keyAlias=androiddebugkey
+          EOF
+
+      - name: Restore packages
+        working-directory: simple_live_app
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: simple_live_app
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: simple-live-android-apk
+          path: simple_live_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
