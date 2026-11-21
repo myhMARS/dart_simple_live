@@ -2,16 +2,23 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag (optional, e.g. v1.11.4-ci). Leave empty to only upload an artifact."
+        required: false
+        type: string
   push:
     branches:
       - master
+    tags:
+      - "v*"
     paths:
       - "simple_live_app/**"
       - "simple_live_core/**"
       - ".github/workflows/build-android-apk.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -66,3 +73,13 @@ jobs:
           path: simple_live_app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Upload APK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          name: ${{ inputs.release_tag || github.ref_name }}
+          files: simple_live_app/build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true
+          make_latest: true
