@@ -23,7 +23,7 @@ subprojects {
 // apply the Kotlin Android plugin itself. Apply it only to that plugin so we
 // don't change the JVM target of Java-only plugin modules.
 subprojects {
-    if (name == "dynamic_color") {
+    if (name == "dynamic_color" || name == "auto_orientation_v2") {
         pluginManager.withPlugin("com.android.library") {
             pluginManager.apply("org.jetbrains.kotlin.android")
         }
