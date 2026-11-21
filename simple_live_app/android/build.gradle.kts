@@ -19,15 +19,14 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Some Flutter plugins (e.g. dynamic_color 1.9.0) use the Kotlin Gradle DSL
-// without applying the Kotlin Android plugin. Apply it to Android modules so
-// their `kotlin { compilerOptions { ... } }` blocks can resolve.
+// dynamic_color 1.9.0 uses `kotlin { compilerOptions { ... } }` but does not
+// apply the Kotlin Android plugin itself. Apply it only to that plugin so we
+// don't change the JVM target of Java-only plugin modules.
 subprojects {
-    pluginManager.withPlugin("com.android.library") {
-        pluginManager.apply("org.jetbrains.kotlin.android")
-    }
-    pluginManager.withPlugin("com.android.application") {
-        pluginManager.apply("org.jetbrains.kotlin.android")
+    if (name == "dynamic_color") {
+        pluginManager.withPlugin("com.android.library") {
+            pluginManager.apply("org.jetbrains.kotlin.android")
+        }
     }
 }
 
