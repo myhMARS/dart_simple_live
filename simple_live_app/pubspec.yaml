@@ -104,6 +104,5 @@ flutter:
     - assets/lotties/
 
 dependency_overrides:
-  # 2.4.7's android/build.gradle calls the kotlin {} extension without
-  # applying the Kotlin plugin, breaking Flutter 3.38 / AGP 8.9 builds.
-  auto_orientation_v2: 2.4.6
+  # 2.4.7 needs the Kotlin Android plugin applied (handled in android/build.gradle.kts).
+  auto_orientation_v2: 2.4.7
