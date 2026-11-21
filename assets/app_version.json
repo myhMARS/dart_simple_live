@@ -1,7 +1,7 @@
 {
-  "version": "1.11.6",
-  "version_num": 11106,
-  "version_desc": "- 使用固定 CI 签名，后续版本可覆盖安装\n- 新增检查更新\n- 修复抖音分类列表\n- 修复 B 站直播间空指针",
+  "version": "1.11.7",
+  "version_num": 11107,
+  "version_desc": "- 优化检查更新缓存（raw 优先，jsDelivr 兜底）\n- 使用固定 CI 签名，后续版本可覆盖安装\n- 修复抖音分类列表\n- 修复 B 站直播间空指针",
   "prerelease": false,
   "download_url": "https://github.com/myhMARS/dart_simple_live/releases/latest"
 }

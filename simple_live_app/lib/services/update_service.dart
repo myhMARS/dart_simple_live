@@ -12,9 +12,10 @@ class UpdateService {
   static final UpdateService instance = UpdateService._();
 
   static const List<String> _manifestUrls = [
-    'https://fastly.jsdelivr.net/gh/myhMARS/dart_simple_live@master/assets/app_version.json',
-    'https://cdn.jsdelivr.net/gh/myhMARS/dart_simple_live@master/assets/app_version.json',
+    // raw updates immediately; jsDelivr can cache @master for up to 12h.
     'https://raw.githubusercontent.com/myhMARS/dart_simple_live/master/assets/app_version.json',
+    'https://cdn.jsdelivr.net/gh/myhMARS/dart_simple_live@master/assets/app_version.json',
+    'https://fastly.jsdelivr.net/gh/myhMARS/dart_simple_live@master/assets/app_version.json',
   ];
 
   Future<VersionModel> _fetchLatest() async {

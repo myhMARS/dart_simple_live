@@ -29,6 +29,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Purge jsDelivr version cache
+        run: |
+          curl -fsS --max-time 20 "https://purge.jsdelivr.net/gh/myhMARS/dart_simple_live@master/assets/app_version.json" > /dev/null || true
+
       - name: Validate version manifest
         run: |
           python3 - <<'PY'
