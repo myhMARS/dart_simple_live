@@ -247,9 +247,20 @@ class BiliBiliSite implements LiveSite {
       queryParameters: queryParams,
       header: await getHeader(),
     );
-    List<String> serverHosts = (roomDanmakuResult["data"]["host_list"] as List)
-        .map<String>((e) => e["host"].toString())
+    final danmuData =
+        roomDanmakuResult is Map ? roomDanmakuResult["data"] : null;
+    final List hostList =
+        danmuData is Map && danmuData["host_list"] is List
+            ? danmuData["host_list"] as List
+            : <dynamic>[];
+    final List<String> serverHosts = hostList
+        .whereType<Map>()
+        .map<String>((e) => (e["host"] ?? "").toString())
+        .where((host) => host.isNotEmpty)
         .toList();
+    final String danmuToken = danmuData is Map && danmuData["token"] != null
+        ? danmuData["token"].toString()
+        : "";
 
     //var buvid = await getBuvid();
     // 从 roomInfo 中提取 live_start_time
@@ -292,7 +303,7 @@ class BiliBiliSite implements LiveSite {
       danmakuData: BiliBiliDanmakuArgs(
         roomId: int.tryParse(realRoomId) ?? 0,
         uid: userId,
-        token: roomDanmakuResult["data"]["token"].toString(),
+        token: danmuToken,
         serverHost: serverHosts.isNotEmpty
             ? serverHosts.first
             : "broadcastlv.chat.bilibili.com",
