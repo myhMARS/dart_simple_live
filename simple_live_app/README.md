@@ -15,3 +15,4 @@
 - 同步更新仓库根目录 `assets/app_version.json` 的 `version`、`version_num` 和 `version_desc`，其中 `version_num` 必须等于 pubspec 的 `+build` 数字。
 - App 启动时会静默检查 `myhMARS/dart_simple_live` 的 `assets/app_version.json`；也可以在「我的 → 检查更新」手动检查。
 - CI 会校验 pubspec 与 `assets/app_version.json` 的版本是否一致，不一致会直接构建失败。
+- CI 使用固定 keystore（GitHub Secrets：`ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`）。从 `1.11.6` 起的版本可以覆盖安装；更早的临时签名版本需要先卸载。

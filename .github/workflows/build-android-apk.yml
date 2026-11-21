@@ -64,19 +64,23 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate CI signing key
+      - name: Restore CI signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          keytool -genkeypair -v \
-            -keystore "$RUNNER_TEMP/ci-keystore.jks" \
-            -storepass android -keypass android \
-            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ci-keystore.p12"
+          keytool -list -storetype PKCS12 \
+            -keystore "$RUNNER_TEMP/ci-keystore.p12" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" > /dev/null
 
           cat > simple_live_app/android/key.properties <<EOF
-          storeFile=$RUNNER_TEMP/ci-keystore.jks
-          storePassword=android
-          keyPassword=android
-          keyAlias=androiddebugkey
+          storeFile=$RUNNER_TEMP/ci-keystore.p12
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
           EOF
 
       - name: Restore packages
