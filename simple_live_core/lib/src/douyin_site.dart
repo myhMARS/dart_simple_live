@@ -64,6 +64,43 @@ class DouyinSite implements LiveSite {
     }
   }
 
+  /// 截取字符串中第一个完整的 JSON 对象。
+  ///
+  /// 抖音首页会把多个 JSON/RSC 数据拼在一起，直接 json.decode 整段会报
+  /// "Extra data"；这里按括号配对找到第一个对象的结束位置。
+  String _extractFirstJsonObject(String text) {
+    var depth = 0;
+    var inString = false;
+    var escaped = false;
+
+    for (var i = 0; i < text.length; i++) {
+      final char = text[i];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (char == '\\') {
+          escaped = true;
+        } else if (char == '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (char == '"') {
+        inString = true;
+      } else if (char == '{') {
+        depth++;
+      } else if (char == '}') {
+        depth--;
+        if (depth == 0) {
+          return text.substring(0, i + 1);
+        }
+      }
+    }
+
+    return text;
+  }
+
   @override
   Future<List<LiveCategory>> getCategores() async {
     List<LiveCategory> categories = [];
@@ -79,11 +116,13 @@ class DouyinSite implements LiveSite {
         ).firstMatch(result)?.group(0) ??
         "";
     var renderDataJson = json.decode(
-      renderData
-          .trim()
-          .replaceAll('\\"', '"')
-          .replaceAll(r"\\", r"\")
-          .replaceAll(']\\n', ""),
+      _extractFirstJsonObject(
+        renderData
+            .trim()
+            .replaceAll('\\"', '"')
+            .replaceAll(r"\\", r"\")
+            .replaceAll(']\\n', ""),
+      ),
     );
 
     for (var item in renderDataJson["categoryData"]) {
