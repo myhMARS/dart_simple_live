@@ -104,5 +104,5 @@ flutter:
     - assets/lotties/
 
 dependency_overrides:
-  # 2.4.7 needs the Kotlin Android plugin applied (handled in android/build.gradle.kts).
-  auto_orientation_v2: 2.4.7
+  # 2.4.7's Kotlin block assigns a String to jvmTarget, which Kotlin 2.x rejects.
+  auto_orientation_v2: 2.4.6
