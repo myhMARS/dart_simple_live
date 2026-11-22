@@ -103,7 +103,7 @@ class OtherSettingsController extends BaseController {
     }
   }
 
-  void loadLogFiles() async {
+  Future<void> loadLogFiles() async {
     await Log.logFileWriter?.flush();
     var supportDir = await getApplicationSupportDirectory();
     var logDir = Directory("${supportDir.path}/log");
