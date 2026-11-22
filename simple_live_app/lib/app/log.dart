@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -15,9 +16,10 @@ class Log {
     logFileWriter = LogFileWriter();
   }
 
-  static void disposeWriter() {
-    logFileWriter?.close();
+  static Future<void> disposeWriter() async {
+    final writer = logFileWriter;
     logFileWriter = null;
+    await writer?.close();
   }
 
   static void writeLog(content, [Level level = Level.info]) {
@@ -66,7 +68,6 @@ class Log {
     addDebugLog(message, Colors.blue);
     logger.i("${DateTime.now().toString()}\n$message");
     if (writeFile) {
-      logFileWriter?.write("[INFO] $_currentTime：$message");
       writeLog(message, Level.info);
     }
   }
@@ -104,30 +105,90 @@ class Log {
 
 class LogFileWriter {
   late String fileName;
+  late final Future<void> _initFuture;
+  final StringBuffer _pending = StringBuffer();
+  Timer? _flushTimer;
+  bool _closed = false;
+  bool _initFailed = false;
+
   LogFileWriter() {
     var dt = DateFormat("yyyy-MM-dd HH-mm-ss").format(DateTime.now());
     fileName = "$dt.log";
-    initFile();
+    _initFuture = initFile();
+    // 定时 flush，避免 IOSink 缓冲导致磁盘文件长时间为空。
+    _flushTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(flush());
+    });
   }
+
   IOSink? fileWriter;
-  void initFile() async {
-    var supportDir = await getApplicationSupportDirectory();
-    var logDir = Directory("${supportDir.path}/log");
-    if (!await logDir.exists()) {
-      await logDir.create();
+
+  Future<void> get ready => _initFuture;
+
+  Future<void> initFile() async {
+    try {
+      var supportDir = await getApplicationSupportDirectory();
+      var logDir = Directory("${supportDir.path}/log");
+      if (!await logDir.exists()) {
+        await logDir.create(recursive: true);
+      }
+      var logFile = File("${logDir.path}/$fileName");
+      fileWriter = logFile.openWrite(mode: FileMode.append);
+      if (_pending.isNotEmpty) {
+        fileWriter!.write(_pending.toString());
+        _pending.clear();
+      }
+      writeSystemInfo();
+    } catch (e) {
+      _initFailed = true;
+      debugPrint("LogFileWriter init failed: $e");
     }
-    var logFile = File("${logDir.path}/$fileName");
-    fileWriter = logFile.openWrite(mode: FileMode.append);
-    writeSystemInfo();
   }
 
   void write(String content) {
-    fileWriter?.write(content);
-    fileWriter?.write("\r\n");
+    if (_closed || _initFailed) {
+      return;
+    }
+    final line = "$content\r\n";
+    final sink = fileWriter;
+    if (sink == null) {
+      // 文件还没打开时先缓存，避免启动阶段日志丢失。
+      _pending.write(line);
+      return;
+    }
+    sink.write(line);
   }
 
-  Future close() async {
-    await fileWriter?.close();
+  Future<void> flush() async {
+    if (_closed) {
+      return;
+    }
+    await _initFuture;
+    final sink = fileWriter;
+    if (sink == null) {
+      return;
+    }
+    try {
+      await sink.flush();
+    } catch (_) {}
+  }
+
+  Future<void> close() async {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
+    _flushTimer?.cancel();
+    await _initFuture;
+    final sink = fileWriter;
+    fileWriter = null;
+    if (sink == null) {
+      return;
+    }
+    try {
+      await sink.flush();
+      await sink.close();
+    } catch (_) {}
   }
 
   void writeSystemInfo() async {

@@ -89,19 +89,22 @@ class OtherSettingsController extends BaseController {
     super.onInit();
   }
 
-  void setLogEnable(e) {
+  void setLogEnable(e) async {
     AppSettingsController.instance.setLogEnable(e);
     if (e) {
       Log.initWriter();
-      Future.delayed(const Duration(milliseconds: 100), () {
-        loadLogFiles();
-      });
+      try {
+        await Log.logFileWriter?.ready;
+      } catch (_) {}
+      await loadLogFiles();
     } else {
-      Log.disposeWriter();
+      await Log.disposeWriter();
+      await loadLogFiles();
     }
   }
 
   void loadLogFiles() async {
+    await Log.logFileWriter?.flush();
     var supportDir = await getApplicationSupportDirectory();
     var logDir = Directory("${supportDir.path}/log");
     if (!await logDir.exists()) {
@@ -133,23 +136,47 @@ class OtherSettingsController extends BaseController {
     loadLogFiles();
   }
 
-  void shareLogFile(LogFileModel item) {
-    SharePlus.instance.share(ShareParams(
-      files: [XFile(item.path)],
-    ));
+  void shareLogFile(LogFileModel item) async {
+    try {
+      await Log.logFileWriter?.flush();
+      var file = File(item.path);
+      if (!await file.exists() || await file.length() == 0) {
+        SmartDialog.showToast("日志文件为空");
+        return;
+      }
+      SharePlus.instance.share(ShareParams(
+        files: [XFile(item.path)],
+      ));
+    } catch (e) {
+      SmartDialog.showToast("分享日志失败");
+    }
   }
 
   void saveLogFile(LogFileModel item) async {
-    var filePath = await FilePicker.platform.saveFile(
-      allowedExtensions: ['log'],
-      type: FileType.custom,
-      fileName: item.name,
-      bytes: Uint8List(0),
-    );
-    if (filePath != null) {
+    try {
+      await Log.logFileWriter?.flush();
       var file = File(item.path);
-      await file.copy(filePath);
+      var bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        SmartDialog.showToast("日志文件为空");
+        return;
+      }
+      var filePath = await FilePicker.platform.saveFile(
+        allowedExtensions: ['log'],
+        type: FileType.custom,
+        fileName: item.name,
+        bytes: (Platform.isAndroid || Platform.isIOS) ? bytes : null,
+      );
+      if (filePath == null) {
+        return;
+      }
+      // 桌面端 saveFile 只返回路径，需要自己写入。
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        await File(filePath).writeAsBytes(bytes, flush: true);
+      }
       SmartDialog.showToast("保存成功");
+    } catch (e) {
+      SmartDialog.showToast("保存失败：$e");
     }
   }
 
