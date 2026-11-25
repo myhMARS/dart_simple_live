@@ -1,7 +1,7 @@
 {
-  "version": "1.11.8",
-  "version_num": 11108,
-  "version_desc": "- 修复日志保存为空：定期 flush 并在保存/分享前同步写入\n- 优化检查更新缓存（raw 优先，jsDelivr 兜底）\n- 使用固定 CI 签名，后续版本可覆盖安装",
+  "version": "1.11.9",
+  "version_num": 11109,
+  "version_desc": "- 修复斗鱼播放一段时间后断流：补 Referer/UA，断流自动刷新房间信息和播放地址\n- 修复日志保存为空\n- 使用固定 CI 签名，后续版本可覆盖安装",
   "prerelease": false,
   "download_url": "https://github.com/myhMARS/dart_simple_live/releases/latest"
 }

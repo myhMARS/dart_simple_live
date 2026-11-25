@@ -342,7 +342,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   }
 
   /// 初始化播放器
-  void getPlayQualites() async {
+  Future<void> getPlayQualites() async {
     qualites.clear();
     currentQuality = -1;
 
@@ -368,7 +368,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         currentQuality = middle;
       }
 
-      getPlayUrl();
+      await getPlayUrl();
     } catch (e) {
       Log.logPrint(e);
       SmartDialog.showToast("无法读取播放清晰度");
@@ -389,7 +389,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     return qualityLevel;
   }
 
-  void getPlayUrl() async {
+  Future<void> getPlayUrl() async {
     playUrls.clear();
     currentQualityInfo.value = qualites[currentQuality].quality;
     currentLineInfo.value = "";
@@ -406,7 +406,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     currentLineInfo.value = "线路${currentLineIndex + 1}";
     //重置错误次数
     mediaErrorRetryCount = 0;
-    initPlaylist();
+    await initPlaylist();
   }
 
   void changePlayLine(int index) {
@@ -441,9 +441,52 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     await player.jump(currentLineIndex);
   }
 
+  /// 直播流被 CDN 断开/签名过期时，重新获取直播间信息和播放地址。
+  Future<void> refreshPlayback() async {
+    if (_refreshingPlayback) {
+      return;
+    }
+    _refreshingPlayback = true;
+    try {
+      Log.d("播放流已断开，刷新直播间信息和播放地址");
+      final newDetail = await site.liveSite.getRoomDetail(roomId: roomId);
+      detail.value = newDetail;
+      final isLive = newDetail.status || newDetail.isRecord;
+      liveStatus.value = isLive;
+      if (!isLive) {
+        errorMsg.value = "直播已结束";
+        return;
+      }
+      await getPlayQualites();
+    } catch (e) {
+      Log.logPrint(e);
+      errorMsg.value = "刷新播放地址失败";
+    } finally {
+      _refreshingPlayback = false;
+    }
+  }
+
+  bool _shouldRefreshPlayback() {
+    if (site.id != "douyu" || _refreshingPlayback) {
+      return false;
+    }
+    final now = DateTime.now();
+    if (_lastPlaybackRefresh != null &&
+        now.difference(_lastPlaybackRefresh!) < const Duration(seconds: 15)) {
+      return false;
+    }
+    _lastPlaybackRefresh = now;
+    return true;
+  }
+
   @override
   void mediaEnd() async {
     super.mediaEnd();
+    if (_shouldRefreshPlayback()) {
+      mediaErrorRetryCount = 0;
+      await refreshPlayback();
+      return;
+    }
     if (mediaErrorRetryCount < 2) {
       Log.d("播放结束，尝试第${mediaErrorRetryCount + 1}次刷新");
       if (mediaErrorRetryCount == 1) {
@@ -468,9 +511,16 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   }
 
   int mediaErrorRetryCount = 0;
+  bool _refreshingPlayback = false;
+  DateTime? _lastPlaybackRefresh;
   @override
   void mediaError(String error) async {
     super.mediaEnd();
+    if (_shouldRefreshPlayback()) {
+      mediaErrorRetryCount = 0;
+      await refreshPlayback();
+      return;
+    }
     if (mediaErrorRetryCount < 2) {
       Log.d("播放失败，尝试第${mediaErrorRetryCount + 1}次刷新");
       if (mediaErrorRetryCount == 1) {
