@@ -120,6 +120,12 @@ class LocalStorageService extends GetxService {
   /// 抖音cookie
   static const String kDouyinCookie = "DouyinCookie";
 
+  /// 斗鱼登录 Cookie / 扫码续期凭据 / 设备号
+  static const String kDouyuCookie = "DouyuCookie";
+  static const String kDouyuDeviceId = "DouyuDeviceId";
+  static const String kDouyuLtp0 = "DouyuLtp0";
+  static const String kDouyuPassportDid = "DouyuPassportDid";
+
   ///主题色
   static const String kStyleColor = "kStyleColor";
 

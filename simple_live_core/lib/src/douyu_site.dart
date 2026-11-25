@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:simple_live_core/src/common/core_error.dart';
+import 'package:simple_live_core/src/common/douyu_passport.dart';
 import 'package:simple_live_core/src/common/http_client.dart';
 import 'package:simple_live_core/src/danmaku/douyu_danmaku.dart';
 import 'package:simple_live_core/src/interface/live_danmaku.dart';
@@ -25,6 +26,35 @@ class DouyuSite implements LiveSite {
 
   /// App 层可注入的持久化匿名设备号；未注入时使用进程内随机值。
   String deviceId = "";
+
+  /// 播放 Cookie 过期时由 App 层注入的续期回调。
+  Future<String?> Function()? onCookieExpired;
+  Future<void>? _renewInFlight;
+
+  Future<void> _ensureFreshCookie() async {
+    if (cookie.trim().isEmpty || !DouyuPassport.isCookieExpired(cookie)) {
+      return;
+    }
+    final renew = onCookieExpired;
+    if (renew == null) {
+      return;
+    }
+    _renewInFlight ??= _runRenewal(renew).whenComplete(() {
+      _renewInFlight = null;
+    });
+    try {
+      await _renewInFlight;
+    } catch (_) {
+      // 续期失败沿用现有 Cookie，由播放重试/换线路兜底。
+    }
+  }
+
+  Future<void> _runRenewal(Future<String?> Function() renew) async {
+    final renewed = await renew();
+    if (renewed != null && renewed.trim().isNotEmpty) {
+      cookie = renewed.trim();
+    }
+  }
 
   static final String _processFallbackDid = _generateHexDid(32);
 
@@ -156,6 +186,7 @@ class DouyuSite implements LiveSite {
   Future<List<LivePlayQuality>> getPlayQualites({
     required LiveRoomDetail detail,
   }) async {
+    await _ensureFreshCookie();
     var data = await _getFreshPlayArgs(detail.roomId, fallback: detail.data);
     data += "&cdn=&rate=-1&ver=Douyu_223061205&iar=1&ive=1&hevc=0&fa=0";
     List<LivePlayQuality> qualities = [];
@@ -208,6 +239,7 @@ class DouyuSite implements LiveSite {
     required LiveRoomDetail detail,
     required LivePlayQuality quality,
   }) async {
+    await _ensureFreshCookie();
     // 签名参数会过期，重试时必须重新取脚本并重新签名。
     var args = await _getFreshPlayArgs(detail.roomId, fallback: detail.data);
     var data = quality.data as DouyuPlayData;

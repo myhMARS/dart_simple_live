@@ -232,6 +232,10 @@ class HuyaSite implements LiveSite {
     if (bitRate > 0) {
       url += "&ratio=$bitRate";
     }
+    // 4K(ratio >= 18000) 缺少 dMod 时会被 CDN 边缘节点 403 拒绝。
+    if (bitRate >= 18000) {
+      url += "&dMod=mseh-0";
+    }
     return url;
   }
 

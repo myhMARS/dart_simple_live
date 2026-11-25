@@ -467,7 +467,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   }
 
   bool _shouldRefreshPlayback() {
-    if (site.id != "douyu" || _refreshingPlayback) {
+    if (_refreshingPlayback) {
       return false;
     }
     final now = DateTime.now();

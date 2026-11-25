@@ -568,6 +568,32 @@ class DouyinSite implements LiveSite {
     return renderDataJson["state"];
   }
 
+  /// 登录墙兜底：用移动端 reflow 接口凭 sec_user_id 匿名取回房间。
+  Future<Map> _getRoomDataByMobileReflow(String secUserId) async {
+    final requestHeader =
+        Map<String, dynamic>.from(await getRequestHeaders());
+    requestHeader["Authority"] = "webcast.amemv.com";
+    requestHeader["Referer"] = "https://webcast.amemv.com/";
+    final result = await HttpClient.instance.getJson(
+      "https://webcast.amemv.com/webcast/room/reflow/info/",
+      queryParameters: {
+        "app_id": "1128",
+        "live_id": "1",
+        "verifyFp": "",
+        "room_id": "2",
+        "type_id": "0",
+        "sec_user_id": secUserId,
+      },
+      header: requestHeader,
+    );
+    final data = result is Map ? result["data"] : null;
+    final room = data is Map ? data["room"] : null;
+    if (room is! Map || room.isEmpty) {
+      throw Exception("抖音移动端房间数据为空");
+    }
+    return room;
+  }
+
   /// 通过webRid获取直播间Web信息
   /// - [webRid] 直播间RID
   Future<Map> _getRoomDataByApi(String webRid) async {
@@ -607,7 +633,18 @@ class DouyinSite implements LiveSite {
       throw Exception("抖音接口返回格式异常");
     }
 
-    return result["data"];
+    final data = result["data"];
+    if (data is Map) {
+      final rooms = data["data"];
+      if ((rooms is! List || rooms.isEmpty) && data["enter_mode"] == 1) {
+        final secUserId = data["user"]?["sec_uid"]?.toString() ?? "";
+        if (secUserId.isNotEmpty) {
+          final room = await _getRoomDataByMobileReflow(secUserId);
+          data["data"] = [room];
+        }
+      }
+    }
+    return data;
   }
 
   /// 通过roomId获取直播间信息
