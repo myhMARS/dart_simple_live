@@ -386,6 +386,11 @@ class BiliBiliSite implements LiveSite {
     );
   }
 
+  @override
+  Future<String?> getLiveStartTime({required String roomId}) async {
+    return null;
+  }
+
   Future<Map<String, dynamic>> getRoomInfo({required String roomId}) async {
     var url =
         "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$roomId";

@@ -411,6 +411,11 @@ class DouyinSite implements LiveSite {
     return await _getRoomDetailByWebRidHtml(webRid);
   }
 
+  @override
+  Future<String?> getLiveStartTime({required String roomId}) async {
+    return null;
+  }
+
   /// 通过WebRid访问直播间API，从API中获取直播间信息
   /// - [webRid] 直播间RID
   /// - 返回直播间信息

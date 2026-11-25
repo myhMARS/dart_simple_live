@@ -418,6 +418,11 @@ class HuyaSite implements LiveSite {
     );
   }
 
+  @override
+  Future<String?> getLiveStartTime({required String roomId}) async {
+    return null;
+  }
+
   Future<Map> _getRoomInfo(String roomId) async {
     var resultText = await HttpClient.instance.getText(
       "https://m.huya.com/$roomId",
