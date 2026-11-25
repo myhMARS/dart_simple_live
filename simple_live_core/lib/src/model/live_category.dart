@@ -3,11 +3,13 @@ import 'dart:convert';
 class LiveCategory {
   final String name;
   final String id;
+  final String? pic;
   final List<LiveSubCategory> children;
   LiveCategory({
     required this.id,
     required this.name,
     required this.children,
+    this.pic,
   });
 
   @override
@@ -15,6 +17,7 @@ class LiveCategory {
     return json.encode({
       "name": name,
       "id": id,
+      "pic": pic,
       "children": children,
     });
   }

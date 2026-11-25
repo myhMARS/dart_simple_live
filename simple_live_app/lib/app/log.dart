@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show utf8;
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -9,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:simple_live_app/app/utils.dart';
+import 'package:simple_live_core/simple_live_core.dart';
 
 class Log {
   static LogFileWriter? logFileWriter;
@@ -133,7 +135,7 @@ class LogFileWriter {
         await logDir.create(recursive: true);
       }
       var logFile = File("${logDir.path}/$fileName");
-      fileWriter = logFile.openWrite(mode: FileMode.append);
+      fileWriter = logFile.openWrite(mode: FileMode.append, encoding: utf8);
       if (_pending.isNotEmpty) {
         fileWriter!.write(_pending.toString());
         _pending.clear();
@@ -149,7 +151,7 @@ class LogFileWriter {
     if (_closed || _initFailed) {
       return;
     }
-    final line = "$content\r\n";
+    final line = HttpLogSanitizer.redactText("$content\r\n");
     final sink = fileWriter;
     if (sink == null) {
       // 文件还没打开时先缓存，避免启动阶段日志丢失。

@@ -1,7 +1,7 @@
 {
-  "version": "1.11.9",
-  "version_num": 11109,
-  "version_desc": "- 修复斗鱼播放一段时间后断流：补 Referer/UA，断流自动刷新房间信息和播放地址\n- 修复日志保存为空\n- 使用固定 CI 签名，后续版本可覆盖安装",
+  "version": "1.12.0",
+  "version_num": 11200,
+  "version_desc": "- 移植 June6699 fork 的斗鱼重签名/设备身份/expire=0 修复\n- B站弹幕登录态被风控时回退未登录获取\n- 抖音分类图标从分区数据提取\n- 日志脱敏/UTF-8 + 日志保存修复\n- 固定 CI 签名，后续版本可覆盖安装",
   "prerelease": false,
   "download_url": "https://github.com/myhMARS/dart_simple_live/releases/latest"
 }

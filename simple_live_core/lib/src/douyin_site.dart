@@ -101,6 +101,57 @@ class DouyinSite implements LiveSite {
     return text;
   }
 
+  static String? _pickPartitionImageUrl(dynamic data) {
+    if (data == null) {
+      return null;
+    }
+    if (data is String) {
+      final value = data.trim();
+      if (value.startsWith("http://") ||
+          value.startsWith("https://") ||
+          value.startsWith("//")) {
+        return value;
+      }
+      return null;
+    }
+    if (data is List) {
+      for (final item in data) {
+        final value = _pickPartitionImageUrl(item);
+        if (value != null && value.isNotEmpty) {
+          return value;
+        }
+      }
+      return null;
+    }
+    if (data is! Map) {
+      return null;
+    }
+    for (final key in const [
+      "icon",
+      "icons",
+      "cover",
+      "background",
+      "avatar_thumb",
+      "image",
+      "image_url",
+      "url",
+      "url_list",
+      "static_icon",
+    ]) {
+      final value = _pickPartitionImageUrl(data[key]);
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    for (final value in data.values) {
+      final resolved = _pickPartitionImageUrl(value);
+      if (resolved != null && resolved.isNotEmpty) {
+        return resolved;
+      }
+    }
+    return null;
+  }
+
   @override
   Future<List<LiveCategory>> getCategores() async {
     List<LiveCategory> categories = [];
@@ -125,15 +176,17 @@ class DouyinSite implements LiveSite {
       ),
     );
 
-    for (var item in renderDataJson["categoryData"]) {
+    final categoryData = renderDataJson["categoryData"] as List? ?? const [];
+    for (var item in categoryData) {
       List<LiveSubCategory> subs = [];
       var id = '${item["partition"]["id_str"]},${item["partition"]["type"]}';
-      for (var subItem in item["sub_partition"]) {
+      final subPartitions = item["sub_partition"] as List? ?? const [];
+      for (var subItem in subPartitions) {
         var subCategory = LiveSubCategory(
           id: '${subItem["partition"]["id_str"]},${subItem["partition"]["type"]}',
           name: asT<String?>(subItem["partition"]["title"]) ?? "",
           parentId: id,
-          pic: "",
+          pic: _pickPartitionImageUrl(subItem["partition"]),
         );
         subs.add(subCategory);
       }
@@ -142,6 +195,7 @@ class DouyinSite implements LiveSite {
         children: subs,
         id: id,
         name: asT<String?>(item["partition"]["title"]) ?? "",
+        pic: _pickPartitionImageUrl(item["partition"]),
       );
       subs.insert(
         0,
@@ -149,7 +203,7 @@ class DouyinSite implements LiveSite {
           id: category.id,
           name: category.name,
           parentId: category.id,
-          pic: "",
+          pic: category.pic,
         ),
       );
       categories.add(category);

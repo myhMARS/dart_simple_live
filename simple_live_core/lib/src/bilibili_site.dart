@@ -57,6 +57,35 @@ class BiliBiliSite implements LiveSite {
           };
   }
 
+  /// 未登录请求头：只带 buvid3/buvid4，用于弹幕接口登录态被风控时回退。
+  Future<Map<String, String>> getNologinHeader() async {
+    if (buvid3.isEmpty) {
+      var buvidInfo = await getBuvid();
+      buvid3 = buvidInfo["b_3"] ?? "";
+      buvid4 = buvidInfo["b_4"] ?? "";
+    }
+    final buvidCookie = [
+      if (buvid3.isNotEmpty) "buvid3=$buvid3",
+      if (buvid4.isNotEmpty) "buvid4=$buvid4",
+    ].join(";");
+    return {
+      "user-agent": kDefaultUserAgent,
+      "referer": kDefaultReferer,
+      if (buvidCookie.isNotEmpty) "cookie": buvidCookie,
+    };
+  }
+
+  List<String> parseDanmuHosts(Map data) {
+    final hostListRaw = data["host_list"];
+    if (hostListRaw is List) {
+      return hostListRaw
+          .map<String>((e) => e["host"].toString())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
+
   @override
   Future<List<LiveCategory>> getCategores() async {
     List<LiveCategory> categories = [];
@@ -242,25 +271,67 @@ class BiliBiliSite implements LiveSite {
         "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";
     var danmuInfoUrl = "$danmuInfoBaseUrl?id=$realRoomId";
     var queryParams = await getWbiSign(danmuInfoUrl);
-    var roomDanmakuResult = await HttpClient.instance.getJson(
-      danmuInfoBaseUrl,
-      queryParameters: queryParams,
-      header: await getHeader(),
-    );
-    final danmuData =
-        roomDanmakuResult is Map ? roomDanmakuResult["data"] : null;
-    final List hostList =
-        danmuData is Map && danmuData["host_list"] is List
-            ? danmuData["host_list"] as List
-            : <dynamic>[];
-    final List<String> serverHosts = hostList
-        .whereType<Map>()
-        .map<String>((e) => (e["host"] ?? "").toString())
-        .where((host) => host.isNotEmpty)
-        .toList();
-    final String danmuToken = danmuData is Map && danmuData["token"] != null
-        ? danmuData["token"].toString()
-        : "";
+    Map? danmuData;
+    List<String> serverHosts = [];
+    bool danmakuNologin = false;
+
+    try {
+      var roomDanmakuResult = await HttpClient.instance.getJson(
+        danmuInfoBaseUrl,
+        queryParameters: queryParams,
+        header: await getHeader(),
+      );
+      // 弹幕接口失败不应阻止进入直播间。
+      final data = roomDanmakuResult is Map ? roomDanmakuResult["data"] : null;
+      if (data is Map) {
+        danmuData = data;
+        serverHosts = parseDanmuHosts(data);
+      } else {
+        CoreLog.w(
+          "B站弹幕信息为空：roomId=$realRoomId "
+          "code=${roomDanmakuResult is Map ? roomDanmakuResult["code"] : null} "
+          "message=${roomDanmakuResult is Map ? roomDanmakuResult["message"] : null}",
+        );
+      }
+    } catch (e) {
+      CoreLog.w("B站弹幕信息获取失败：roomId=$realRoomId error=$e");
+    }
+
+    // 登录态可能被弹幕接口风控（如 -352），未登录请求通常不受影响（issue #150）。
+    // 回退后必须以游客身份连接弹幕：uid=0 且不携带登录 cookie，否则认证包
+    // 的 uid 与 token 所属身份不一致会被服务器断开。
+    if (danmuData == null && cookie.isNotEmpty) {
+      try {
+        var roomDanmakuResult = await HttpClient.instance.getJson(
+          danmuInfoBaseUrl,
+          queryParameters: queryParams,
+          header: await getNologinHeader(),
+        );
+        final data =
+            roomDanmakuResult is Map ? roomDanmakuResult["data"] : null;
+        if (data is Map) {
+          danmuData = data;
+          serverHosts = parseDanmuHosts(data);
+          danmakuNologin = true;
+          CoreLog.w(
+            "B站弹幕信息登录态获取失败，已回退未登录获取：roomId=$realRoomId",
+          );
+        } else {
+          CoreLog.w(
+            "B站弹幕信息未登录回退仍为空：roomId=$realRoomId "
+            "code=${roomDanmakuResult is Map ? roomDanmakuResult["code"] : null} "
+            "message=${roomDanmakuResult is Map ? roomDanmakuResult["message"] : null}",
+          );
+        }
+      } catch (e) {
+        CoreLog.w("B站弹幕信息未登录回退失败：roomId=$realRoomId error=$e");
+      }
+    }
+
+    final String danmuToken =
+        danmuData is Map && danmuData["token"] != null
+            ? danmuData["token"].toString()
+            : "";
 
     //var buvid = await getBuvid();
     // 从 roomInfo 中提取 live_start_time
@@ -302,13 +373,13 @@ class BiliBiliSite implements LiveSite {
       notice: "",
       danmakuData: BiliBiliDanmakuArgs(
         roomId: int.tryParse(realRoomId) ?? 0,
-        uid: userId,
+        uid: danmakuNologin ? 0 : userId,
         token: danmuToken,
         serverHost: serverHosts.isNotEmpty
             ? serverHosts.first
             : "broadcastlv.chat.bilibili.com",
         buvid: buvid3,
-        cookie: cookie,
+        cookie: danmakuNologin ? "" : cookie,
       ),
       showTime: liveStartTime, // 将 liveStartTime 赋值给 showTime 字段
     );
