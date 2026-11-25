@@ -151,21 +151,29 @@ class FollowService extends GetxService {
     }
   }
 
-  /// 获取最优并发数
-  /// 根据 CPU 核心数和用户设置自动计算
-  int getOptimalConcurrency() {
-    var userSetting = AppSettingsController.instance.updateFollowThreadCount.value;
-
-    // 如果用户设置为 0，则自动根据 CPU 核心数计算
-    if (userSetting == 0) {
-      var cpuCount = Platform.numberOfProcessors;
-      // 网络 I/O 密集型任务，并发数可以是 CPU 核心数的 2-3 倍
-      var optimal = (cpuCount * 2.5).round();
-      // 限制在合理范围内（最少 4，最多 20）
-      return optimal.clamp(4, 20);
+  /// 获取最优并发数。
+  ///
+  /// 关注刷新是对各平台接口的密集请求，并发过高容易被斗鱼/抖音等风控，
+  /// 表现为状态更新失败、用户从列表里消失；自动模式最多 4 并发。
+  int getOptimalConcurrency({int? totalCount}) {
+    final count = totalCount ?? followList.length;
+    if (count <= 0) {
+      return 1;
     }
-
-    return userSetting;
+    final userSetting = AppSettingsController.instance.updateFollowThreadCount.value;
+    if (userSetting > 0) {
+      return userSetting.clamp(1, 8).clamp(1, count).toInt();
+    }
+    var concurrency = 2;
+    if (count > 50 && count <= 200) {
+      concurrency = 3;
+    } else if (count > 200) {
+      concurrency = 4;
+    }
+    if (count < concurrency) {
+      concurrency = count;
+    }
+    return concurrency.clamp(1, 4).toInt();
   }
 
   /// 按平台交错排列，避免单一平台阻塞
@@ -193,7 +201,7 @@ class FollowService extends GetxService {
     updatedCount = 0;
     updating.value = true;
 
-    var concurrency = getOptimalConcurrency();
+    var concurrency = getOptimalConcurrency(totalCount: followList.length);
 
     Log.logPrint("开始更新关注状态，并发数: $concurrency，总数: ${followList.length}");
 
@@ -223,22 +231,31 @@ class FollowService extends GetxService {
   }
 
   Future updateLiveStatus(FollowUser item) async {
+    final previousStatus = item.liveStatus.value;
     try {
       var site = Sites.allSites[item.siteId]!;
       // 先只查状态
       var isLiving = await site.liveSite.getLiveStatus(roomId: item.roomId);
       item.liveStatus.value = isLiving ? 2 : 1;
       if (item.liveStatus.value == 2) {
-        // 只有正在直播时才查详细信息
-        var detail = await site.liveSite.getRoomDetail(roomId: item.roomId);
-        item.liveStartTime = detail.showTime;
+        // 详情只用于补开播时间，失败不能把“直播中”误改成未知。
+        try {
+          var detail = await site.liveSite.getRoomDetail(roomId: item.roomId);
+          item.liveStartTime = detail.showTime;
+        } catch (e) {
+          Log.logPrint(e);
+          item.liveStartTime = null;
+        }
       } else {
         item.liveStartTime = null;
       }
     } catch (e) {
       Log.logPrint(e);
-      item.liveStatus.value = 0;
-      item.liveStartTime = null;
+      // 状态接口本身失败时保留上一次已知状态，避免关注用户从列表里消失。
+      item.liveStatus.value = previousStatus;
+      if (item.liveStatus.value != 2) {
+        item.liveStartTime = null;
+      }
     } finally {
       updatedCount++;
       if (updatedCount >= followList.length) {
@@ -251,7 +268,8 @@ class FollowService extends GetxService {
   void filterData() {
     followList.sort((a, b) => b.liveStatus.value.compareTo(a.liveStatus.value));
     liveList.assignAll(followList.where((x) => x.liveStatus.value == 2));
-    notLiveList.assignAll(followList.where((x) => x.liveStatus.value == 1));
+    // 0 表示本次状态未知，仍归入“未开播”页，避免关注用户直接消失。
+    notLiveList.assignAll(followList.where((x) => x.liveStatus.value != 2));
     _updatedListController.add(0);
   }
 

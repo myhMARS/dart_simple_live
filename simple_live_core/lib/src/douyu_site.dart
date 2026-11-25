@@ -445,6 +445,9 @@ class DouyuSite implements LiveSite {
     } else {
       roomInfo = result["room"];
     }
+    if (roomInfo is! Map || roomInfo["room_id"] == null) {
+      throw CoreError("斗鱼房间信息为空或结构变更");
+    }
     return roomInfo;
   }
 
@@ -502,7 +505,11 @@ class DouyuSite implements LiveSite {
   @override
   Future<bool> getLiveStatus({required String roomId}) async {
     var roomInfo = await _getRoomInfo(roomId);
-    return roomInfo["show_status"] == 1 && roomInfo["videoLoop"] != 1;
+    final showStatus =
+        int.tryParse(roomInfo["show_status"]?.toString() ?? "");
+    final videoLoop =
+        int.tryParse(roomInfo["videoLoop"]?.toString() ?? "");
+    return showStatus == 1 && videoLoop != 1;
   }
 
   int parseHotNum(String hn) {
