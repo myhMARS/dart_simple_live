@@ -3,14 +3,13 @@ import 'package:get/get.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/modules/mine/account/douyu/qr_login_controller.dart';
-import 'package:simple_live_app/widgets/mobile_page_insets.dart';
 
 class DouyuQRLoginPage extends GetView<DouyuQRLoginController> {
   const DouyuQRLoginPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MobilePageInsets(child: Builder(builder: _buildContent));
+    return _buildContent(context);
   }
 
   Widget _buildContent(BuildContext context) {
