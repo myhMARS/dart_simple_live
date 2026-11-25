@@ -1,7 +1,7 @@
 {
-  "version": "1.13.1",
-  "version_num": 11301,
-  "version_desc": "- 修复斗鱼关注开播状态更新：降低刷新并发、状态失败保留上次状态、详情失败不再误判直播中\n- 斗鱼状态字段兼容字符串/数字\n- 继续包含斗鱼扫码登录、B站弹幕回退、虎牙/抖音修复",
+  "version": "1.14.0",
+  "version_num": 11400,
+  "version_desc": "- 新增清晰度记忆：默认/数据网络可选“记住上次”，按平台保存，手动切换自动记录\n- 修复斗鱼关注开播时间：优先用 betard 轻量字段，详情失败不再丢失\n- 保留斗鱼扫码登录、B站弹幕回退、抖音/虎牙修复",
   "prerelease": false,
   "download_url": "https://github.com/myhMARS/dart_simple_live/releases/latest"
 }

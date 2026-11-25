@@ -351,6 +351,9 @@ class DouyuSite implements LiveSite {
       header: {..._requestHeaders, 'referer': 'https://www.douyu.com/$roomId'},
     );
     String? showTime = h5RoomInfo["data"]?["show_time"]?.toString();
+    if (showTime == null || showTime.isEmpty || showTime == "0") {
+      showTime = _normalizeShowTime(roomInfo["show_time"]);
+    }
 
     var jsEncResult = await HttpClient.instance.getText(
       "https://www.douyu.com/swf_api/homeH5Enc?rids=$roomId",
@@ -502,14 +505,33 @@ class DouyuSite implements LiveSite {
     return LiveSearchAnchorResult(hasMore: hasMore, items: items);
   }
 
+  final Map<String, String?> _showTimeCache = {};
+
+  String? _normalizeShowTime(dynamic value) {
+    final text = value?.toString() ?? "";
+    return (text.isNotEmpty && text != "0") ? text : null;
+  }
+
   @override
   Future<bool> getLiveStatus({required String roomId}) async {
     var roomInfo = await _getRoomInfo(roomId);
+    _showTimeCache[roomId] = _normalizeShowTime(roomInfo["show_time"]);
     final showStatus =
         int.tryParse(roomInfo["show_status"]?.toString() ?? "");
     final videoLoop =
         int.tryParse(roomInfo["videoLoop"]?.toString() ?? "");
     return showStatus == 1 && videoLoop != 1;
+  }
+
+  @override
+  Future<String?> getLiveStartTime({required String roomId}) async {
+    if (_showTimeCache.containsKey(roomId)) {
+      return _showTimeCache[roomId];
+    }
+    final roomInfo = await _getRoomInfo(roomId);
+    final showTime = _normalizeShowTime(roomInfo["show_time"]);
+    _showTimeCache[roomId] = showTime;
+    return showTime;
   }
 
   int parseHotNum(String hn) {

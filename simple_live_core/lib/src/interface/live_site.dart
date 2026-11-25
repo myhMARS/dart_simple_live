@@ -82,6 +82,12 @@ class LiveSite {
     return Future.value(false);
   }
 
+  /// 查询开播时间（轻量接口，能避免关注刷新时拉完整房间详情）。
+  /// 返回 null 表示平台未实现或不支持。
+  Future<String?> getLiveStartTime({required String roomId}) {
+    return Future.value(null);
+  }
+
   /// 读取指定房间的SC
   Future<List<LiveSuperChatMessage>> getSuperChatMessage(
       {required String roomId}) {

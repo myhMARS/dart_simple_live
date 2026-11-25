@@ -176,6 +176,7 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                       0: "最低",
                       1: "中等",
                       2: "最高",
+                      3: "记住上次",
                     },
                     onChanged: (e) {
                       controller.setQualityLevel(e);
@@ -191,6 +192,7 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                       0: "最低",
                       1: "中等",
                       2: "最高",
+                      3: "记住上次",
                     },
                     onChanged: (e) {
                       controller.setQualityLevelCellular(e);

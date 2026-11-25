@@ -362,6 +362,23 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
       } else if (qualityLevel == 0) {
         //最低
         currentQuality = playQualites.length - 1;
+      } else if (qualityLevel == 3) {
+        //记住上次：名称精确匹配优先，名称不存在时按偏移兜底。
+        final memory =
+            AppSettingsController.instance.getQualityMemory(site.id);
+        if (memory != null) {
+          final resolved = QualityMemory.resolveIndex(
+            qualities: playQualites,
+            savedName: memory.name,
+            savedOffset: memory.offset,
+          );
+          if (resolved >= 0) {
+            currentQuality = resolved;
+          }
+        }
+        if (currentQuality < 0) {
+          currentQuality = (playQualites.length / 2).floor();
+        }
       } else {
         //中间值
         int middle = (playQualites.length / 2).floor();
@@ -710,6 +727,13 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         onChanged: (e) {
           Get.back();
           currentQuality = e ?? 0;
+          if (currentQuality >= 0 && currentQuality < qualites.length) {
+            AppSettingsController.instance.saveQualityMemory(
+              siteId: site.id,
+              qualityName: qualites[currentQuality].quality,
+              offsetFromTop: currentQuality,
+            );
+          }
           getPlayUrl();
         },
         child: ListView.builder(

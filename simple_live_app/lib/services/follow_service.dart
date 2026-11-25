@@ -240,8 +240,20 @@ class FollowService extends GetxService {
       if (item.liveStatus.value == 2) {
         // 详情只用于补开播时间，失败不能把“直播中”误改成未知。
         try {
-          var detail = await site.liveSite.getRoomDetail(roomId: item.roomId);
-          item.liveStartTime = detail.showTime;
+          String? startTime;
+          try {
+            startTime = await site.liveSite.getLiveStartTime(
+              roomId: item.roomId,
+            );
+          } catch (e) {
+            Log.logPrint(e);
+          }
+          if (startTime == null || startTime.isEmpty) {
+            var detail =
+                await site.liveSite.getRoomDetail(roomId: item.roomId);
+            startTime = detail.showTime;
+          }
+          item.liveStartTime = startTime;
         } catch (e) {
           Log.logPrint(e);
           item.liveStartTime = null;
